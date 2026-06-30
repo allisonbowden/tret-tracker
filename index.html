@@ -152,7 +152,7 @@
   </header>
 
   <div class="stats">
-    <div class="stat"><div class="num" id="streak">0</div><div class="lbl">streak</div></div>
+    <div class="stat"><div class="num" id="cadence">–</div><div class="lbl">days apart</div></div>
     <div class="stat"><div class="num" id="total">0</div><div class="lbl">nights</div></div>
     <div class="stat"><div class="num" id="month">0</div><div class="lbl">this month</div></div>
   </div>
@@ -185,17 +185,19 @@ const todayKey = () => keyFor(new Date());
 function keyFor(d){ return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
 function save(){ localStorage.setItem(KEY, JSON.stringify([...logged])); }
 
-function computeStreak(){
-  let s = 0; let d = new Date();
-  // streak counts back from today; if today not logged, start from yesterday
-  if(!logged.has(keyFor(d))) d.setDate(d.getDate()-1);
-  while(logged.has(keyFor(d))){ s++; d.setDate(d.getDate()-1); }
-  return s;
+function computeCadence(){
+  // average days between applications, across the logged span: "every X days"
+  if(logged.size < 2) return "–";
+  const ks = [...logged].sort();
+  const first = new Date(ks[0] + "T00:00:00");
+  const last = new Date(ks[ks.length-1] + "T00:00:00");
+  const spanDays = Math.round((last - first) / 86400000);
+  return (spanDays / (logged.size - 1)).toFixed(1);
 }
 
 function render(){
   // stats
-  document.getElementById("streak").textContent = computeStreak();
+  document.getElementById("cadence").textContent = computeCadence();
   document.getElementById("total").textContent = logged.size;
   const ym = view.getFullYear()+"-"+String(view.getMonth()+1).padStart(2,"0");
   document.getElementById("month").textContent = [...logged].filter(k=>k.startsWith(ym)).length;
