@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#1b1530">
+<title>Tret Tracker</title>
+<style>
+  :root {
+    --bg: #1b1530;
+    --bg-2: #251c45;
+    --card: #2c2150;
+    --accent: #b794f6;
+    --accent-strong: #9f7aea;
+    --logged: #6b46c1;
+    --logged-glow: rgba(159, 122, 234, 0.55);
+    --text: #ece8f7;
+    --muted: #9a8fc0;
+    --danger: #f56565;
+    --radius: 16px;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: radial-gradient(120% 100% at 50% 0%, var(--bg-2), var(--bg));
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    min-height: 100vh;
+    padding: 20px 16px 48px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  .wrap { width: 100%; max-width: 440px; }
+  header { text-align: center; margin-bottom: 18px; }
+  h1 { font-size: 1.45rem; margin: 0 0 2px; letter-spacing: 0.5px; }
+  .sub { color: var(--muted); font-size: 0.82rem; }
+
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-bottom: 18px;
+  }
+  .stat {
+    background: var(--card);
+    border-radius: var(--radius);
+    padding: 14px 8px;
+    text-align: center;
+  }
+  .stat .num { font-size: 1.6rem; font-weight: 700; line-height: 1; }
+  .stat .lbl { font-size: 0.68rem; color: var(--muted); margin-top: 5px; text-transform: uppercase; letter-spacing: 0.6px; }
+
+  .log-btn {
+    width: 100%;
+    border: none;
+    border-radius: var(--radius);
+    padding: 18px;
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: white;
+    background: linear-gradient(135deg, var(--accent-strong), var(--logged));
+    box-shadow: 0 8px 24px var(--logged-glow);
+    cursor: pointer;
+    transition: transform 0.08s ease, opacity 0.2s ease;
+    margin-bottom: 22px;
+  }
+  .log-btn:active { transform: scale(0.97); }
+  .log-btn.done {
+    background: var(--card);
+    color: var(--accent);
+    box-shadow: none;
+    border: 1px solid var(--accent-strong);
+  }
+
+  .cal-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+  }
+  .cal-head button {
+    background: var(--card);
+    border: none;
+    color: var(--text);
+    width: 36px; height: 36px;
+    border-radius: 10px;
+    font-size: 1.1rem;
+    cursor: pointer;
+  }
+  .cal-head .month { font-weight: 600; }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 6px;
+  }
+  .dow { text-align: center; font-size: 0.65rem; color: var(--muted); padding-bottom: 4px; }
+  .day {
+    aspect-ratio: 1 / 1;
+    border-radius: 12px;
+    background: var(--bg-2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.8rem;
+    color: var(--muted);
+    cursor: pointer;
+    user-select: none;
+    position: relative;
+    transition: background 0.15s ease, transform 0.08s ease;
+  }
+  .day.empty { background: transparent; cursor: default; }
+  .day.future { opacity: 0.35; cursor: default; }
+  .day.logged {
+    background: linear-gradient(135deg, var(--accent-strong), var(--logged));
+    color: white;
+    font-weight: 700;
+    box-shadow: 0 3px 10px var(--logged-glow);
+  }
+  .day.logged:active { transform: scale(0.92); }
+  .day.today { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+  .footer { margin-top: 24px; text-align: center; }
+  .link {
+    background: none; border: none; color: var(--muted);
+    font-size: 0.78rem; cursor: pointer; text-decoration: underline;
+    padding: 6px 10px;
+  }
+
+  /* toast */
+  .toast {
+    position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%) translateY(20px);
+    background: var(--card); color: var(--text);
+    padding: 12px 18px; border-radius: 30px;
+    font-size: 0.85rem; box-shadow: 0 8px 30px rgba(0,0,0,0.4);
+    opacity: 0; pointer-events: none; transition: all 0.25s ease;
+    display: flex; align-items: center; gap: 12px; max-width: 90vw;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); pointer-events: auto; }
+  .toast button {
+    background: var(--accent-strong); border: none; color: white;
+    padding: 5px 12px; border-radius: 20px; font-weight: 600; cursor: pointer; font-size: 0.8rem;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Tret Tracker</h1>
+    <div class="sub">tap a logged day to undo</div>
+  </header>
+
+  <div class="stats">
+    <div class="stat"><div class="num" id="streak">0</div><div class="lbl">streak</div></div>
+    <div class="stat"><div class="num" id="total">0</div><div class="lbl">nights</div></div>
+    <div class="stat"><div class="num" id="month">0</div><div class="lbl">this month</div></div>
+  </div>
+
+  <button class="log-btn" id="logBtn">Log tonight</button>
+
+  <div class="cal-head">
+    <button id="prev">‹</button>
+    <span class="month" id="monthLabel"></span>
+    <button id="next">›</button>
+  </div>
+  <div class="grid" id="dow"></div>
+  <div class="grid" id="cal"></div>
+
+  <div class="footer">
+    <button class="link" id="exportBtn">Export backup</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"><span id="toastMsg"></span><button id="toastAction" hidden></button></div>
+
+<script>
+const KEY = "tret-log-v1";
+let logged = new Set(JSON.parse(localStorage.getItem(KEY) || "[]"));
+let view = new Date(); view.setDate(1);
+
+const todayKey = () => keyFor(new Date());
+function keyFor(d){ return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
+function save(){ localStorage.setItem(KEY, JSON.stringify([...logged])); }
+
+function computeStreak(){
+  let s = 0; let d = new Date();
+  // streak counts back from today; if today not logged, start from yesterday
+  if(!logged.has(keyFor(d))) d.setDate(d.getDate()-1);
+  while(logged.has(keyFor(d))){ s++; d.setDate(d.getDate()-1); }
+  return s;
+}
+
+function render(){
+  // stats
+  document.getElementById("streak").textContent = computeStreak();
+  document.getElementById("total").textContent = logged.size;
+  const ym = view.getFullYear()+"-"+String(view.getMonth()+1).padStart(2,"0");
+  document.getElementById("month").textContent = [...logged].filter(k=>k.startsWith(ym)).length;
+
+  // log button
+  const btn = document.getElementById("logBtn");
+  if(logged.has(todayKey())){ btn.textContent = "✓ Logged tonight"; btn.classList.add("done"); }
+  else { btn.textContent = "Log tonight"; btn.classList.remove("done"); }
+
+  // calendar
+  document.getElementById("monthLabel").textContent =
+    view.toLocaleString(undefined,{month:"long",year:"numeric"});
+  const dow = document.getElementById("dow");
+  if(!dow.dataset.done){
+    ["S","M","T","W","T","F","S"].forEach(d=>{ const e=document.createElement("div"); e.className="dow"; e.textContent=d; dow.appendChild(e); });
+    dow.dataset.done = "1";
+  }
+  const cal = document.getElementById("cal"); cal.innerHTML="";
+  const first = new Date(view.getFullYear(), view.getMonth(), 1).getDay();
+  const days = new Date(view.getFullYear(), view.getMonth()+1, 0).getDate();
+  const tKey = todayKey();
+  for(let i=0;i<first;i++){ const e=document.createElement("div"); e.className="day empty"; cal.appendChild(e); }
+  for(let d=1; d<=days; d++){
+    const date = new Date(view.getFullYear(), view.getMonth(), d);
+    const k = keyFor(date);
+    const e = document.createElement("div");
+    e.className = "day"; e.textContent = d; e.dataset.key = k;
+    if(logged.has(k)) e.classList.add("logged");
+    if(k === tKey) e.classList.add("today");
+    if(date > new Date().setHours(23,59,59,999)) e.classList.add("future");
+    e.addEventListener("click", ()=>onDayTap(k, e));
+    cal.appendChild(e);
+  }
+}
+
+function onDayTap(k, el){
+  if(el.classList.contains("future") || el.classList.contains("empty")) return;
+  if(logged.has(k)){
+    // undo with confirm toast
+    confirmToast("Remove "+pretty(k)+"?", "Undo", ()=>{
+      logged.delete(k); save(); render();
+      toast("Removed");
+    });
+  } else {
+    logged.add(k); save(); render();
+  }
+}
+
+function pretty(k){
+  const [y,m,d] = k.split("-").map(Number);
+  return new Date(y,m-1,d).toLocaleDateString(undefined,{month:"short",day:"numeric"});
+}
+
+// --- toasts ---
+let toastTimer;
+function toast(msg){
+  const t=document.getElementById("toast");
+  document.getElementById("toastMsg").textContent=msg;
+  document.getElementById("toastAction").hidden=true;
+  t.classList.add("show"); clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>t.classList.remove("show"),1800);
+}
+function confirmToast(msg, label, fn){
+  const t=document.getElementById("toast");
+  document.getElementById("toastMsg").textContent=msg;
+  const a=document.getElementById("toastAction");
+  a.hidden=false; a.textContent=label;
+  a.onclick=()=>{ fn(); t.classList.remove("show"); };
+  t.classList.add("show"); clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>t.classList.remove("show"),4000);
+}
+
+// --- events ---
+document.getElementById("logBtn").addEventListener("click", ()=>{
+  const k=todayKey();
+  if(logged.has(k)){ confirmToast("Already logged today. Remove it?","Undo",()=>{ logged.delete(k); save(); render(); }); }
+  else { logged.add(k); save(); render(); toast("Logged ✓"); }
+});
+document.getElementById("prev").addEventListener("click", ()=>{ view.setMonth(view.getMonth()-1); render(); });
+document.getElementById("next").addEventListener("click", ()=>{ view.setMonth(view.getMonth()+1); render(); });
+document.getElementById("exportBtn").addEventListener("click", ()=>{
+  const blob=new Blob([JSON.stringify([...logged],null,2)],{type:"application/json"});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement("a"); a.href=url; a.download="tret-backup.json"; a.click();
+  URL.revokeObjectURL(url);
+});
+
+render();
+</script>
+</body>
+</html>
