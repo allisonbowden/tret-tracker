@@ -153,7 +153,7 @@
 
   <div class="stats">
     <div class="stat"><div class="num" id="cadence">–</div><div class="lbl">days apart</div></div>
-    <div class="stat"><div class="num" id="total">0</div><div class="lbl">nights</div></div>
+    <div class="stat"><div class="num" id="weeks">0</div><div class="lbl">weeks</div></div>
     <div class="stat"><div class="num" id="month">0</div><div class="lbl">this month</div></div>
   </div>
 
@@ -185,6 +185,17 @@ const todayKey = () => keyFor(new Date());
 function keyFor(d){ return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
 function save(){ localStorage.setItem(KEY, JSON.stringify([...logged])); }
 
+function computeWeeks(){
+  // distinct Mon–Sun weeks containing at least one application (matches the paper sheet's rows)
+  const weeks = new Set();
+  logged.forEach(k=>{
+    const d = new Date(k + "T00:00:00");
+    const mondayOffset = (d.getDay() + 6) % 7; // Mon=0 … Sun=6
+    d.setDate(d.getDate() - mondayOffset);
+    weeks.add(keyFor(d));
+  });
+  return weeks.size;
+}
 function computeCadence(){
   // average days between applications, across the logged span: "every X days"
   if(logged.size < 2) return "–";
@@ -198,7 +209,7 @@ function computeCadence(){
 function render(){
   // stats
   document.getElementById("cadence").textContent = computeCadence();
-  document.getElementById("total").textContent = logged.size;
+  document.getElementById("weeks").textContent = computeWeeks();
   const ym = view.getFullYear()+"-"+String(view.getMonth()+1).padStart(2,"0");
   document.getElementById("month").textContent = [...logged].filter(k=>k.startsWith(ym)).length;
 
